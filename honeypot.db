@@ -1,0 +1,92 @@
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id      TEXT PRIMARY KEY,
+    src_ip          TEXT,
+    src_port        INTEGER,
+    src_country     TEXT,
+    src_asn         TEXT,
+    auth_username   TEXT,
+    auth_password   TEXT,
+    auth_success    INTEGER DEFAULT 0,
+    start_time      REAL,
+    end_time        REAL,
+    duration_sec    REAL,
+    exit_reason     TEXT,
+    container_id    TEXT,
+    capture_file    TEXT,
+    env_snapshot    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS auth_attempts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    src_ip          TEXT NOT NULL,
+    src_port        INTEGER,
+    ts              REAL NOT NULL,
+    username        TEXT,
+    password        TEXT,
+    auth_type       TEXT,
+    success         INTEGER DEFAULT 0,
+    session_id      TEXT
+);
+
+CREATE TABLE IF NOT EXISTS credentials (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      TEXT NOT NULL,
+    ts_offset_ms    REAL NOT NULL,
+    source          TEXT NOT NULL,
+    credential_type TEXT NOT NULL,
+    key             TEXT,
+    value           TEXT,
+    raw_context     TEXT,
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+);
+
+CREATE TABLE IF NOT EXISTS network_peers (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      TEXT NOT NULL,
+    ts_offset_ms    REAL NOT NULL,
+    direction       TEXT NOT NULL,
+    host            TEXT,
+    port            INTEGER,
+    protocol        TEXT,
+    raw_context     TEXT,
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+);
+
+CREATE TABLE IF NOT EXISTS keystrokes (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      TEXT NOT NULL,
+    seq             INTEGER NOT NULL,
+    ts_offset_ms    REAL NOT NULL,
+    delta_ms        REAL,
+    byte_hex        TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+);
+
+CREATE TABLE IF NOT EXISTS commands (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      TEXT NOT NULL,
+    seq             INTEGER NOT NULL,
+    ts_offset_ms    REAL NOT NULL,
+    command_line    TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+);
+
+CREATE TABLE IF NOT EXISTS output_chunks (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      TEXT NOT NULL,
+    seq             INTEGER NOT NULL,
+    ts_offset_ms    REAL NOT NULL,
+    data            BLOB NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_ip        ON sessions(src_ip);
+CREATE INDEX IF NOT EXISTS idx_sessions_time      ON sessions(start_time);
+CREATE INDEX IF NOT EXISTS idx_auth_ip            ON auth_attempts(src_ip);
+CREATE INDEX IF NOT EXISTS idx_auth_time          ON auth_attempts(ts);
+CREATE INDEX IF NOT EXISTS idx_creds_session      ON credentials(session_id);
+CREATE INDEX IF NOT EXISTS idx_creds_type         ON credentials(credential_type);
+CREATE INDEX IF NOT EXISTS idx_peers_session      ON network_peers(session_id);
+CREATE INDEX IF NOT EXISTS idx_keystrokes_session ON keystrokes(session_id, seq);
+CREATE INDEX IF NOT EXISTS idx_commands_session   ON commands(session_id, seq);
+CREATE INDEX IF NOT EXISTS idx_output_session     ON output_chunks(session_id, seq);
